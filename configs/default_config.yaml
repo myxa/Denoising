@@ -1,0 +1,45 @@
+# Default configuration for fMRI denoising pipeline
+
+# Atlas Configuration
+atlas:
+  name: "schaefer_2018"
+  resolution: 2  # mm (1 or 2)
+  n_regions: 400  # Number of brain regions
+
+# Denoising Parameters
+denoising:
+  smoothing_fwhm: 6.0  # mm
+  detrend: true
+  standardize: "zscore"  # options: zscore, psc, false
+  low_pass: 0.1  # Hz
+  high_pass: 0.01  # Hz
+  t_r: null  # Will be read from BOLD header if null
+
+# Confounds Configuration
+confounds:
+  strategy: "custom"  # options: custom, simple, scrubbing
+  columns:
+    - "csf"
+    - "white_matter"
+    - "global_signal"
+    - "trans_x"
+    - "trans_y"
+    - "trans_z"
+    - "rot_x"
+    - "rot_y"
+    - "rot_z"
+  derivatives:
+    csf: ["power2"]
+    white_matter: ["power2"]
+  fd_threshold: null  # For scrubbing strategy
+
+# Output Configuration
+output:
+  directory: "./output"
+  naming_pattern: "{subject}_{session}_{task}_{run}_atlas-{atlas_name}.csv"
+  include_metadata: true
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "./logs/denoising.log"

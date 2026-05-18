@@ -54,6 +54,10 @@ class AtlasManager:
                 labels=atlas.labels,
                 standardize=False,
             )
+        elif self.atlas_name.lower() == "brainnetome":
+            # TODO ADD ATLAS
+
+            pass
         else:
             raise ValueError(f"Atlas {self.atlas_name} not supported")
 

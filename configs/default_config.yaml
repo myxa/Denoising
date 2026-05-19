@@ -28,6 +28,7 @@ confounds:
     - "rot_x"
     - "rot_y"
     - "rot_z"
+
   derivatives:
     csf: ["power2"]
     white_matter: ["power2"]

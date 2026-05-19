@@ -1,7 +1,13 @@
 """Tests for core module."""
 
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock, patch, MagicMock
+
 import pytest
+from denoising.core.atlas import AtlasManager
 from denoising.core.denoiser import Denoiser
+from nilearn.maskers import NiftiLabelsMasker
 
 
 def test_denoiser_initialization():
@@ -59,3 +65,22 @@ def test_denoiser_validate_timeseries_mismatch():
 
     with pytest.raises(ValueError, match="Timeseries has 2 timepoints, expected 3"):
         denoiser.validate_timeseries(timeseries, 3)
+
+def test_download_bnt():
+    manager = AtlasManager(atlas_name="brainnetome", resolution=1, n_regions=246)
+    masker = manager.fetch_atlas()
+    assert isinstance(masker, NiftiLabelsMasker)
+    assert isinstance(masker.labels, list)
+    assert masker.labels[0] == "Background"
+
+
+def test_atlas_manager_brainnetome_initialization():
+    """Test AtlasManager initialization with brainnetome atlas."""
+    manager = AtlasManager(atlas_name="brainnetome", resolution=2, n_regions=246)
+    
+    assert manager.atlas_name == "brainnetome"
+    assert manager.resolution == 2
+    assert manager.n_regions == 246
+    assert manager._atlas_data is None
+    assert manager._masker is None
+

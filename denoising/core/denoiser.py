@@ -16,8 +16,8 @@ class Denoiser:
         smoothing_fwhm: float = 6.0,
         detrend: bool = True,
         standardize: str = "zscore",
-        low_pass: Optional[float] = 0.1,
-        high_pass: Optional[float] = 0.01,
+        low_pass: Optional[float] = None,
+        high_pass: Optional[float] = None,
         t_r: Optional[float] = None,
     ):
         """Initialize Denoiser.

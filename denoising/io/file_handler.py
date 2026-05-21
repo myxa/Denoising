@@ -10,26 +10,6 @@ import nibabel as nib
 logger = logging.getLogger(__name__)
 
 
-def load_bold_file(file_path: str):
-    """Load BOLD NIfTI file.
-
-    Args:
-        file_path: Path to BOLD NIfTI file.
-
-    Returns:
-        NIfTI image object.
-
-    Raises:
-        FileNotFoundError: If file doesn't exist.
-    """
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"BOLD file not found: {file_path}")
-
-    logger.info(f"Loading BOLD file: {file_path}")
-    return nib.load(file_path)
-
-
 def parse_bids_filename(filename: str) -> Dict[str, str]:
     """Parse BIDS filename to extract entities.
 
@@ -76,13 +56,3 @@ def validate_file_exists(file_path: str) -> bool:
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
     return True
-
-
-def create_output_directory(path: str):
-    """Create output directory if it doesn't exist.
-
-    Args:
-        path: Directory path to create.
-    """
-    Path(path).mkdir(parents=True, exist_ok=True)
-    logger.info(f"Ensured output directory exists: {path}")

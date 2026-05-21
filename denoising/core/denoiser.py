@@ -46,14 +46,16 @@ class Denoiser:
         params = {
             "smoothing_fwhm": self.smoothing_fwhm,
             "detrend": self.detrend,
-            "standardize": self.standardize != "false",
-            "standardize_confounds": self.standardize != "false",
+            "standardize": self.standardize,
+            "standardize_confounds": self.standardize,
         }
 
         if self.low_pass is not None and self.t_r is not None:
             params["low_pass"] = self.low_pass
         if self.high_pass is not None and self.t_r is not None:
             params["high_pass"] = self.high_pass
+        if self.t_r is not None:
+            params["t_r"] = self.t_r
 
         return params
 

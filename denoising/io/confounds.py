@@ -22,17 +22,6 @@ class ConfoundsHandler:
             config: Confounds configuration.
         """
         self.config = config
-        self.selection_rules = self._parse_selection_rules()
-
-    def _parse_selection_rules(self) -> Dict[str, List[str]]:
-        """Parse selection rules from config.
-
-        Returns:
-            Dictionary mapping confounds to derivative types.
-        """
-        if self.config.derivatives:
-            return self.config.derivatives
-        return {}
 
     def load_confounds(self, tsv_path: str) -> pd.DataFrame:
         """Load confounds from TSV file.
@@ -53,6 +42,7 @@ class ConfoundsHandler:
         logger.info(f"Loading confounds from {tsv_path}")
         df = pd.read_csv(tsv_path, sep="\t", comment="#")
         logger.info(f"Loaded {len(df.columns)} confound columns")
+
         return df
 
     def get_available_confounds(self, tsv_path: str) -> List[str]:
@@ -86,17 +76,14 @@ class ConfoundsHandler:
 
         selected = confounds_df[columns].copy()
 
-        # Apply derivatives
-        selected = self._apply_derivatives(selected)
-
         # Validate timepoints
-        if n_timepoints is not None:
-            self._validate_confounds(selected.values, n_timepoints)
+        #if n_timepoints is not None:
+        #    self._validate_confounds(selected.values, n_timepoints)
 
         logger.info(f"Selected {selected.shape[1]} confounds: {selected.columns.tolist()}")
-        return selected.values
+        return selected#.values
 
-    def load_and_select(self, tsv_path: str, n_timepoints: Optional[int] = None) -> np.ndarray:
+    def load_and_select(self, tsv_path: str, demean: Optional[bool] = False, n_timepoints: Optional[int] = None) -> np.ndarray:
         """Load and select confounds in one step.
 
         Args:
@@ -107,6 +94,11 @@ class ConfoundsHandler:
             Confounds matrix.
         """
         df = self.load_confounds(tsv_path)
+        if demean:
+            df.subtract(df.mean(), axis=0, inplace=True)
+
+        df.interpolate('values', inplace=True).ffill(inplace=True).bfill(inplace=True)
+        df.fillna(0, inplace=True)
         return self.select_confounds(df, n_timepoints)
 
     def _select_custom_confounds(self, confounds_df: pd.DataFrame) -> List[str]:
@@ -172,29 +164,6 @@ class ConfoundsHandler:
             columns.extend(fd_cols)
 
         return columns
-
-    def _apply_derivatives(self, confounds_df: pd.DataFrame) -> pd.DataFrame:
-        """Apply temporal derivatives to specified confounds.
-
-        Args:
-            confounds_df: DataFrame with confounds.
-
-        Returns:
-            DataFrame with derivatives added.
-        """
-        result = confounds_df.copy()
-
-        for confound, deriv_types in self.selection_rules.items():
-            if confound not in result.columns:
-                continue
-
-            values = result[confound].values
-
-            for deriv_type in deriv_types:
-                if deriv_type == "power2":
-                    result[f"{confound}_power2"] = values ** 2
-
-        return result
 
     def _validate_confounds(self, confounds: np.ndarray, n_timepoints: int):
         """Validate confounds matrix matches expected timepoints.

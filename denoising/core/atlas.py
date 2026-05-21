@@ -7,9 +7,9 @@ from typing import List, Optional
 import nibabel as nib
 import nilearn.datasets
 import numpy as np
-import requests
 from nilearn.maskers import NiftiLabelsMasker
-from tqdm import tqdm
+
+from denoising.utils.helpers import download_file
 
 import pandas as pd
 
@@ -74,67 +74,6 @@ class AtlasManager:
 
         return self._masker
 
-    def get_region_names(self) -> List[str]:
-        """Get region names from the atlas.
-
-        Returns:
-            List of region names.
-
-        Raises:
-            RuntimeError: If atlas hasn't been fetched yet.
-        """
-        if self._atlas_data is None:
-            raise RuntimeError("Atlas not fetched. Call fetch_atlas() first.")
-        return self._atlas_data.labels
-
-    def get_atlas_image(self):
-        """Get the atlas image.
-
-        Returns:
-            Atlas image object.
-
-        Raises:
-            RuntimeError: If atlas hasn't been fetched yet.
-        """
-        if self._atlas_data is None:
-            raise RuntimeError("Atlas not fetched. Call fetch_atlas() first.")
-        return self._atlas_data.maps
-
-    def cache_atlas(self, cache_dir: str):
-        """Cache atlas to specified directory.
-
-        Args:
-            cache_dir: Directory path for caching.
-        """
-        Path(cache_dir).mkdir(parents=True, exist_ok=True)
-        self.fetch_atlas(cache_dir=cache_dir)
-
-    def _download_file(self, url: str, destination: Path, description: str = "file") -> None:
-        """Download a file with progress bar.
-
-        Args:
-            url: URL to download from.
-            destination: Path to save the file.
-            description: Description for progress bar.
-        """
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        total_size = int(response.headers.get('content-length', 0))
-        
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(destination, 'wb') as f, tqdm(
-            desc=description,
-            total=total_size,
-            unit='B',
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as pbar:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    pbar.update(len(chunk))
-
     def _fetch_brainnetome_atlas(self, cache_dir: Optional[str] = None):
         """Fetch Brainnetome atlas.
 
@@ -155,7 +94,7 @@ class AtlasManager:
         atlas_file = cache_dir / f"BN_Atlas_246_{self.resolution}mm.nii.gz"
         labels_file = cache_dir / f"BN_Atlas_246_Label.txt"
         
-        # Official Brainnetome atlas download URLs
+        # Brainnetome atlas download URLs
         if self.resolution == 1:
             atlas_url = "https://pan.cstcloud.cn/unode/stor/downloadByUrl?downloadId=1.eyJidWNrZXQiOiJkZWZhdWx0IiwibGVuIjoxNzYzMjEsInNpemUiOjE3NjMyMSwicG9zIjowLCJuYW1lIjoiQk5fQXRsYXNfMjQ2XzFtbS5uaWkuZ3oiLCJjdGltZSI6MTc3OTIxNTczNCwia2V5IjoiR3MyMkJRSHlVYl9Zd0lJSXB3MHFLQmdNOEJNQUFyREIiLCJhZ2UiOjg2NDAwLCJwYXJ0T25lIjp7InNpemUiOjE3NjMyMSwiZm4iOiJLRkdxTFB4SFFwZy0wLTE3NjMyMSIsImNyYzMyIjozMjY1ODc3NTM3LCJiaWQiOjEsImNpZCI6MX19.415090223"
         elif self.resolution == 2:
@@ -167,7 +106,7 @@ class AtlasManager:
         if not atlas_file.exists():
             logger.info(f"Downloading Brainnetome atlas from {atlas_url}")
             try:
-                self._download_file(atlas_url, atlas_file, "Brainnetome atlas")
+                download_file(atlas_url, atlas_file, "Brainnetome atlas")
             except Exception as e:
                 logger.error(f"Failed to download Brainnetome atlas: {e}")
                 raise RuntimeError(
@@ -180,7 +119,7 @@ class AtlasManager:
         if not labels_file.exists():
             logger.info(f"Downloading Brainnetome labels from {labels_url}")
             try:
-                self._download_file(labels_url, labels_file, "Brainnetome labels")
+                download_file(labels_url, labels_file, "Brainnetome labels")
 
                 labels = pd.read_csv(labels_file, sep=' ', index_col=0, 
                                      names=['label', 1, 2, 3, 4]).label.to_list()

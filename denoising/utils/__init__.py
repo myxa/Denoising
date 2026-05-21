@@ -1,8 +1,8 @@
 """Utility functions."""
 
-from denoising.utils.helpers import create_output_directory, validate_file_exists
+from denoising.utils.helpers import download_file, create_confounds_strategy
 
 __all__ = [
-    "create_output_directory",
-    "validate_file_exists",
+    "download_file",
+    "create_confounds_strategy",
 ]

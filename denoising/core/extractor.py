@@ -62,22 +62,14 @@ class TimeSeriesExtractor:
         self,
         timeseries: pd.DataFrame,
         output_path: str,
-        include_metadata: bool = True,
     ):
         """Save time-series to CSV file.
 
         Args:
             timeseries: Time-series DataFrame.
             output_path: Output file path.
-            include_metadata: Whether to include metadata as comments.
         """
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_path, "w") as f:
-            if include_metadata:
-                f.write(f"# Timepoints: {timeseries.shape[0]}\n")
-                f.write(f"# Regions: {timeseries.shape[1]}\n")
-                f.write("# Columns: brain regions\n")
 
         timeseries.to_csv(output_path, index=False)
         logger.info(f"Saved time-series to {output_path}")

@@ -24,7 +24,7 @@ class ConfoundsConfig(BaseModel):
 
     strategy: str = "custom"
     columns: List[str] = Field(default_factory=lambda: ["csf", "white_matter", "global_signal"])
-    derivatives: Optional[Dict[str, List[str]]] = None
+    #derivatives: Optional[Dict[str, List[str]]] = None
     fd_threshold: Optional[float] = None
 
     @field_validator("strategy")
@@ -38,17 +38,17 @@ class ConfoundsConfig(BaseModel):
 class DenoisingConfig(BaseModel):
     """Denoising parameters."""
 
-    smoothing_fwhm: float = 6.0
+    smoothing_fwhm: float = None
     detrend: bool = True
-    standardize: str = "zscore"
-    low_pass: Optional[float] = 0.1
-    high_pass: Optional[float] = 0.01
+    standardize: Union[str, bool] = False
+    low_pass: Optional[float] = None
+    high_pass: Optional[float] = None
     t_r: Optional[float] = None
 
     @field_validator("standardize")
     @classmethod
     def validate_standardize(cls, v: str) -> str:
-        if v not in ["zscore", "psc", "false"]:
+        if v not in ["zscore", "psc", False]:
             raise ValueError("Standardize must be zscore, psc, or false")
         return v
 

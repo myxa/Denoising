@@ -66,20 +66,29 @@ class DenoisingPipeline:
         # Parse BIDS filename for output naming
         bids_info = parse_bids_filename(bold_path)
 
+        # Fetch atlas and configure masker
+        masker = self.atlas_manager.fetch_atlas()
+        masker_params = self.denoiser.get_masker_params()
+
+        # Load and select confounds
+        confounds = self.confounds_handler.load_and_select(confounds_path)
+
+        # IF BOTH COSINES AND FILTERING BANDPASS 
+        if "cosine" in confounds and (
+            masker_params['low_pass'] is not None and masker_params['high_pass'] is not None):
+            raise ValueError("Both cosines and bandpass filters are in confounds. Please remove one of them.")
+        
         # Load BOLD header to get TR if not specified
         if self.denoiser.t_r is None:
             bold_img = nib.load(bold_path)
             self.denoiser.t_r = bold_img.header.get_zooms()[-1]
-            logger.info(f"Detected TR: {self.denoiser.t_r}s")
-
-        # Fetch atlas and configure masker
-        masker = self.atlas_manager.fetch_atlas()
-        masker_params = self.denoiser.get_masker_params()
+            masker_params['t_r'] = self.denoiser.t_r
+            logger.info(f"Detected TR: {self.denoiser.t_r} s")
+        
         for key, value in masker_params.items():
             setattr(masker, key, value)
 
-        # Load and select confounds
-        confounds = self.confounds_handler.load_and_select(confounds_path)
+        logger.info(f"Selected confounds: {confounds}")
 
         # Extract time-series
         timeseries = self.extractor.extract_timeseries(

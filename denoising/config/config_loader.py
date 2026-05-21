@@ -36,44 +36,6 @@ def load_config(config_path: str) -> PipelineConfig:
         raise ValueError(f"Configuration validation failed: {e}")
 
 
-def merge_configs(*configs: Dict) -> Dict:
-    """Merge multiple configuration dictionaries.
-
-    Args:
-        *configs: Configuration dictionaries to merge (later configs override earlier).
-
-    Returns:
-        Merged configuration dictionary.
-    """
-    merged = {}
-    for config in configs:
-        for key, value in config.items():
-            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-                merged[key] = merge_configs(merged[key], value)
-            else:
-                merged[key] = value
-    return merged
-
-
-def validate_config(config: Dict) -> bool:
-    """Validate configuration dictionary.
-
-    Args:
-        config: Configuration dictionary.
-
-    Returns:
-        True if valid.
-
-    Raises:
-        ValueError: If validation fails.
-    """
-    try:
-        PipelineConfig(**config)
-        return True
-    except ValidationError as e:
-        raise ValueError(f"Configuration validation failed: {e}")
-
-
 def setup_logging(config: Optional[PipelineConfig] = None, log_file: Optional[str] = None):
     """Setup logging configuration.
 

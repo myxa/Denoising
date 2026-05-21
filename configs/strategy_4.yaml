@@ -6,11 +6,11 @@ atlas:
   resolution: 2  # mm (1 or 2)
   n_regions: 400  # Number of brain regions
 
-# Denoising Parameters
+# Denoising Parameters passed to nifti labels masker 
 denoising:
   smoothing_fwhm: 4.0  # mm
   detrend: true
-  standardize: "false"  # options: zscore, psc, false
+  standardize: false  # options: zscore, psc, false
   low_pass: 0.1  # Hz
   high_pass: 0.01  # Hz
   t_r: null  # Will be read from BOLD header if null
@@ -19,15 +19,6 @@ denoising:
 confounds:
   strategy: "custom"  # options: custom, simple, scrubbing
   columns:
-    - "csf"
-    - "white_matter"
-    - "global_signal"
-    - "trans_x"
-    - "trans_y"
-    - "trans_z"
-    - "rot_x"
-    - "rot_y"
-    - "rot_z"
     - "a_comp_cor_00"
     - "a_comp_cor_01"
     - "a_comp_cor_02"
@@ -38,16 +29,38 @@ confounds:
     - "a_comp_cor_07"
     - "a_comp_cor_08"
     - "a_comp_cor_09"
-  derivatives:
-    csf: ["power2"]
-    white_matter: ["power2"]
-    global_signal: ["power2"]
-    trans_x: ["power2"]
-    trans_y: ["power2"]
-    trans_z: ["power2"]
-    rot_x: ["power2"]
-    rot_y: ["power2"]
-    rot_z: ["power2"]
+    - "cosine00"
+    - "cosine01"
+    - "cosine02"
+    - "cosine03"
+    - "global_signal"
+    - "global_signal_derivative1"
+    - "global_signal_derivative1_power2"
+    - "global_signal_power2"
+    - "rot_x"
+    - "rot_x_derivative1"
+    - "rot_x_derivative1_power2"
+    - "rot_x_power2"
+    - "rot_y"
+    - "rot_y_derivative1"
+    - "rot_y_derivative1_power2"
+    - "rot_y_power2"
+    - "rot_z"
+    - "rot_z_derivative1"
+    - "rot_z_derivative1_power2"
+    - "rot_z_power2"
+    - "trans_x"
+    - "trans_x_derivative1"
+    - "trans_x_derivative1_power2"
+    - "trans_x_power2"
+    - "trans_y"
+    - "trans_y_derivative1"
+    - "trans_y_derivative1_power2"
+    - "trans_y_power2"
+    - "trans_z"
+    - "trans_z_derivative1"
+    - "trans_z_derivative1_power2"
+    - "trans_z_power2"
   fd_threshold: null  # For scrubbing strategy
 
 # Output Configuration

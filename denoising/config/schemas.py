@@ -19,19 +19,94 @@ class AtlasConfig(BaseModel):
         return v
 
 
-class ConfoundsConfig(BaseModel):
-    """Confounds selection configuration."""
+class NilearnConfoundsConfig(BaseModel):
+    """Nilearn load_confounds configuration parameters."""
 
-    strategy: str = "custom"
-    columns: List[str] = Field(default_factory=lambda: ["csf", "white_matter", "global_signal"])
-    #derivatives: Optional[Dict[str, List[str]]] = None
-    fd_threshold: Optional[float] = None
+    strategy: List[str] = Field(
+        default_factory=lambda: ["motion", "compcor"],
+        description="List of confound strategies to use"
+    )
+
+    motion: Optional[str] = Field(
+        default="basic",
+        description="Motion parameters: basic, derivatives, power2, full"
+    )
+
+    compcor: Optional[str] = Field(
+        default=None,
+        description="CompCor strategy: anat_combined, anat_separated, temp_combined, temp_separated"
+    )
+    n_compcor: Optional[int] = Field(
+        default=None,
+        description="Number of CompCor components to use"
+    )
+
+    global_signal: Optional[str] = Field(
+        default=None,
+        description="Global signal: basic, derivatives, power2, full"
+    )
+
+    high_pass: Optional[float] = Field(
+        default=None,
+        description="High pass filter cutoff in Hz"
+    )
+    low_pass: Optional[float] = Field(
+        default=None,
+        description="Low pass filter cutoff in Hz"
+    )
+
+    cosine: Optional[Union[int, str]] = Field(
+        default=None,
+        description="Cosine regressors: number or 'full'"
+    )
+
+    scrub: Optional[int] = Field(
+        default=None,
+        description="Number of volumes to remove before/after high motion"
+    )
+    fd_th: Optional[float] = Field(
+        default=None,
+        description="Framewise displacement threshold"
+    )
+    dvars_th: Optional[float] = Field(
+        default=None,
+        description="DVARS threshold"
+    )
+
+    tr: Optional[float] = Field(
+        default=None,
+        description="Repetition time in seconds"
+    )
+    include: Optional[List[str]] = Field(
+        default=None,
+        description="List of specific confounds to include"
+    )
+    exclude: Optional[List[str]] = Field(
+        default=None,
+        description="List of confounds to exclude"
+    )
+
+    @field_validator("motion", "global_signal")
+    @classmethod
+    def validate_motion_options(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ["basic", "derivatives", "power2", "full"]:
+            raise ValueError("Must be basic, derivatives, power2, or full")
+        return v
+
+    @field_validator("compcor")
+    @classmethod
+    def validate_compcor_options(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ["anat_combined", "anat_separated", "temp_combined", "temp_separated"]:
+            raise ValueError("Must be anat_combined, anat_separated, temp_combined, or temp_separated")
+        return v
 
     @field_validator("strategy")
     @classmethod
-    def validate_strategy(cls, v: str) -> str:
-        if v not in ["custom", "simple", "scrubbing"]:
-            raise ValueError("Strategy must be custom, simple, or scrubbing")
+    def validate_strategy(cls, v: List[str]) -> List[str]:
+        valid_strategies = ["motion", "compcor", "global_signal", "high_pass", "low_pass", "cosine", "scrub"]
+        invalid = [s for s in v if s not in valid_strategies]
+        if invalid:
+            raise ValueError(f"Invalid strategies: {invalid}. Valid options: {valid_strategies}")
         return v
 
 
@@ -80,6 +155,6 @@ class PipelineConfig(BaseModel):
 
     atlas: AtlasConfig = Field(default_factory=AtlasConfig)
     denoising: DenoisingConfig = Field(default_factory=DenoisingConfig)
-    confounds: ConfoundsConfig = Field(default_factory=ConfoundsConfig)
+    confounds: NilearnConfoundsConfig = Field(default_factory=NilearnConfoundsConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

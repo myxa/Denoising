@@ -15,53 +15,22 @@ denoising:
   high_pass: 0.01  # Hz
   t_r: null  # Will be read from BOLD header if null
 
-# Confounds Configuration
+# Confounds Configuration using nilearn load_confounds - Strategy 4
 confounds:
-  strategy: "custom"  # options: custom, simple, scrubbing
-  columns:
-    - "a_comp_cor_00"
-    - "a_comp_cor_01"
-    - "a_comp_cor_02"
-    - "a_comp_cor_03"
-    - "a_comp_cor_04"
-    - "a_comp_cor_05"
-    - "a_comp_cor_06"
-    - "a_comp_cor_07"
-    - "a_comp_cor_08"
-    - "a_comp_cor_09"
-    - "cosine00"
-    - "cosine01"
-    - "cosine02"
-    - "cosine03"
-    - "global_signal"
-    - "global_signal_derivative1"
-    - "global_signal_derivative1_power2"
-    - "global_signal_power2"
-    - "rot_x"
-    - "rot_x_derivative1"
-    - "rot_x_derivative1_power2"
-    - "rot_x_power2"
-    - "rot_y"
-    - "rot_y_derivative1"
-    - "rot_y_derivative1_power2"
-    - "rot_y_power2"
-    - "rot_z"
-    - "rot_z_derivative1"
-    - "rot_z_derivative1_power2"
-    - "rot_z_power2"
-    - "trans_x"
-    - "trans_x_derivative1"
-    - "trans_x_derivative1_power2"
-    - "trans_x_power2"
-    - "trans_y"
-    - "trans_y_derivative1"
-    - "trans_y_derivative1_power2"
-    - "trans_y_power2"
-    - "trans_z"
-    - "trans_z_derivative1"
-    - "trans_z_derivative1_power2"
-    - "trans_z_power2"
-  fd_threshold: null  # For scrubbing strategy
+  strategy: ["motion", "compcor", "high_pass", "global_signal"]
+  motion: "full"
+  compcor: "anat_combined"
+  n_compcor: 10
+  global_signal: "full"
+  high_pass: 0.01  # Hz
+  low_pass: null  # Hz
+  cosine: null
+  scrub: null
+  fd_th: null
+  dvars_th: null
+  tr: null
+  include: null
+  exclude: null
 
 # Output Configuration
 output:

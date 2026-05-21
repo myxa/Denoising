@@ -15,24 +15,22 @@ denoising:
   high_pass: 0.01  # Hz
   t_r: null  # Will be read from BOLD header if null
 
-# Confounds Configuration
+# Confounds Configuration using nilearn load_confounds
 confounds:
-  strategy: "custom"  # options: custom, simple, scrubbing
-  columns:
-    - "csf"
-    - "white_matter"
-    - "global_signal"
-    - "trans_x"
-    - "trans_y"
-    - "trans_z"
-    - "rot_x"
-    - "rot_y"
-    - "rot_z"
-
-  derivatives:
-    csf: ["power2"]
-    white_matter: ["power2"]
-  fd_threshold: null  # For scrubbing strategy
+  strategy: ["motion", "compcor"]
+  motion: "basic"  # options: basic, derivatives, power2, full
+  compcor: "anat_combined"  # options: anat_combined, anat_separated, temp_combined, temp_separated
+  n_compcor: 5  # Number of CompCor components
+  global_signal: null  # options: basic, derivatives, power2, full
+  high_pass: null  # Hz
+  low_pass: null  # Hz
+  cosine: null  # number or "full"
+  scrub: null  # Number of volumes to remove
+  fd_th: null  # Framewise displacement threshold
+  dvars_th: null  # DVARS threshold
+  tr: null  # Repetition time in seconds
+  include: null  # List of specific confounds to include
+  exclude: null  # List of confounds to exclude
 
 # Output Configuration
 output:

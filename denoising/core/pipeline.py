@@ -10,7 +10,7 @@ from denoising.config.schemas import PipelineConfig
 from denoising.core.atlas import AtlasManager
 from denoising.core.denoiser import Denoiser
 from denoising.core.extractor import TimeSeriesExtractor
-from denoising.io.confounds import ConfoundsHandler
+from denoising.io.nilearn_confounds import NilearnConfoundsHandler
 from denoising.io.file_handler import parse_bids_filename
 
 logger = logging.getLogger(__name__)
@@ -40,19 +40,17 @@ class DenoisingPipeline:
             t_r=config.denoising.t_r,
         )
         self.extractor = TimeSeriesExtractor()
-        self.confounds_handler = ConfoundsHandler(config.confounds)
+        self.confounds_handler = NilearnConfoundsHandler(config.confounds)
 
     def process_subject(
         self,
         bold_path: str,
-        confounds_path: str,
         output_dir: Optional[str] = None,
     ) -> str:
         """Process a single subject's data.
 
         Args:
             bold_path: Path to BOLD NIfTI file.
-            confounds_path: Path to confounds TSV file.
             output_dir: Output directory (uses config default if None).
 
         Returns:
@@ -71,7 +69,7 @@ class DenoisingPipeline:
         masker_params = self.denoiser.get_masker_params()
 
         # Load and select confounds
-        confounds = self.confounds_handler.load_and_select(confounds_path)
+        confounds = self.confounds_handler.load_and_select(bold_path)
 
         # IF BOTH COSINES AND FILTERING BANDPASS 
         if "cosine" in confounds and (
@@ -125,7 +123,7 @@ class DenoisingPipeline:
         """Process multiple subjects.
 
         Args:
-            subjects: List of dicts with 'bold_path' and 'confounds_path' keys.
+            subjects: List of dicts with 'bold_path' key.
             output_dir: Output directory.
 
         Returns:
@@ -137,7 +135,6 @@ class DenoisingPipeline:
             try:
                 output = self.process_subject(
                     subject["bold_path"],
-                    subject["confounds_path"],
                     output_dir,
                 )
                 results.append(output)

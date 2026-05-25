@@ -1,7 +1,7 @@
 """Denoising operations for fMRI data."""
 
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 
@@ -15,7 +15,8 @@ class Denoiser:
         self,
         smoothing_fwhm: float = 6.0,
         detrend: bool = True,
-        standardize: str = "zscore",
+        standardize: Optional[str] = None,
+        standardize_confounds: Union[str, bool] = False,
         low_pass: Optional[float] = None,
         high_pass: Optional[float] = None,
         t_r: Optional[float] = None,
@@ -33,6 +34,7 @@ class Denoiser:
         self.smoothing_fwhm = smoothing_fwhm
         self.detrend = detrend
         self.standardize = standardize
+        self.standardize_confounds = standardize_confounds
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
@@ -47,12 +49,12 @@ class Denoiser:
             "smoothing_fwhm": self.smoothing_fwhm,
             "detrend": self.detrend,
             "standardize": self.standardize,
-            "standardize_confounds": self.standardize,
+            "standardize_confounds": self.standardize_confounds,
         }
 
-        if self.low_pass is not None and self.t_r is not None:
+        if self.low_pass is not None:
             params["low_pass"] = self.low_pass
-        if self.high_pass is not None and self.t_r is not None:
+        if self.high_pass is not None:
             params["high_pass"] = self.high_pass
         if self.t_r is not None:
             params["t_r"] = self.t_r

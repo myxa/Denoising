@@ -1,8 +1,8 @@
-# Default configuration for fMRI denoising pipeline
+# Strategy 24 HMP + compcor10 + GSR
 
 # Atlas Configuration
 atlas:
-  name: "brainnetome"
+  name: "schaefer_2018"
   resolution: 2  # mm (1 or 2)
   n_regions: 400  # Number of brain regions
 
@@ -10,33 +10,27 @@ atlas:
 denoising:
   smoothing_fwhm: 4.0  # mm
   detrend: true
-  standardize: false  # options: zscore, psc, false
+  standardize: null  # options: zscore, psc, false, none
+  standardize_confounds: true # true false
   low_pass: 0.1  # Hz
-  high_pass: 0.01  # Hz
-  t_r: null  # Will be read from BOLD header if null
+  high_pass: 0.009  # Hz
+  t_r: null  # nedeed if low and high pass passed and Will be read from BOLD header if null
 
-# Confounds Configuration using nilearn load_confounds - Strategy 4
+# Confounds Configuration using nilearn load_confounds
 confounds:
   strategy: ["motion", "compcor", "high_pass", "global_signal"]
   motion: "full"
   compcor: "anat_combined"
   n_compcor: 10
   global_signal: "full"
-  high_pass: 0.01  # Hz
-  low_pass: null  # Hz
-  cosine: null
-  scrub: null
+  cosine: false
   fd_th: null
   dvars_th: null
-  tr: null
-  include: null
-  exclude: null
 
 # Output Configuration
 output:
   directory: "./output"
   naming_pattern: "{subject}_{session}_{task}_{run}_atlas-{atlas_name}.csv"
-  include_metadata: true
 
 # Logging
 logging:

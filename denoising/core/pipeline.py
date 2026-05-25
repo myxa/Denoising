@@ -35,6 +35,7 @@ class DenoisingPipeline:
             smoothing_fwhm=config.denoising.smoothing_fwhm,
             detrend=config.denoising.detrend,
             standardize=config.denoising.standardize,
+            standardize_confounds=config.denoising.standardize_confounds,
             low_pass=config.denoising.low_pass,
             high_pass=config.denoising.high_pass,
             t_r=config.denoising.t_r,
@@ -69,15 +70,19 @@ class DenoisingPipeline:
         masker_params = self.denoiser.get_masker_params()
 
         # Load and select confounds
-        confounds = self.confounds_handler.load_and_select(bold_path)
+        confounds, sample_mask = self.confounds_handler.load_and_select(bold_path)
 
-        # IF BOTH COSINES AND FILTERING BANDPASS 
-        if "cosine" in confounds and (
-            masker_params['low_pass'] is not None and masker_params['high_pass'] is not None):
-            raise ValueError("Both cosines and bandpass filters are in confounds. Please remove one of them.")
+        # IF BOTH COSINES AND BANDPASS 
+        #if "cosine" in confounds and (
+        #    masker_params['low_pass'] is not None and masker_params['high_pass'] is not None):
+        #    raise ValueError("Both cosines and bandpass filters are in confounds. Please remove one of them.")
+        
+        #if "cosine" in confounds and masker_params['detrend']:
+        #    raise ValueError("Using both cosine transforms from fmriprep confounds and detrend of masker is redundant")
         
         # Load BOLD header to get TR if not specified
-        if self.denoiser.t_r is None:
+        # needed only for masker's bandpass
+        if self.denoiser.t_r is None:# and "cosine" not in confounds:
             bold_img = nib.load(bold_path)
             self.denoiser.t_r = bold_img.header.get_zooms()[-1]
             masker_params['t_r'] = self.denoiser.t_r
@@ -93,6 +98,7 @@ class DenoisingPipeline:
             bold_path,
             masker,
             confounds=confounds,
+            sample_mask=sample_mask,
         )
 
         # Generate output filename and save
@@ -109,11 +115,10 @@ class DenoisingPipeline:
         self.extractor.save_timeseries(
             timeseries,
             output_path,
-            include_metadata=self.config.output.include_metadata,
         )
 
         logger.info(f"Completed: {output_path}")
-        return output_path
+        return (timeseries, output_path)
 
     def process_batch(
         self,
@@ -130,6 +135,7 @@ class DenoisingPipeline:
             List of output file paths.
         """
         results = []
+        failed = []
         for i, subject in enumerate(subjects):
             logger.info(f"Processing subject {i+1}/{len(subjects)}")
             try:
@@ -140,6 +146,7 @@ class DenoisingPipeline:
                 results.append(output)
             except Exception as e:
                 logger.error(f"Failed to process {subject['bold_path']}: {e}")
+                failed.append(i)
                 results.append(None)
 
         return results

@@ -38,8 +38,11 @@ class NilearnConfoundsHandler:
 
         confounds_df, sample_mask = load_confounds(bold_path, **params)
 
+        if self.config.cosine is False:
+            confounds_df = confounds_df.loc[:, ~confounds_df.columns.str.startswith('cosine')]
+
         logger.info(f"Loaded {len(confounds_df.columns)} confounds")
-        return confounds_df
+        return (confounds_df, sample_mask)
 
     def _config_to_params(self) -> Dict[str, Any]:
         """Convert config object to params dict for load_confounds.
@@ -60,23 +63,13 @@ class NilearnConfoundsHandler:
             params['n_compcor'] = self.config.n_compcor
         if self.config.global_signal is not None:
             params['global_signal'] = self.config.global_signal
-        if self.config.high_pass is not None:
-            params['high_pass'] = self.config.high_pass
-        if self.config.low_pass is not None:
-            params['low_pass'] = self.config.low_pass
-        if self.config.cosine is not None:
-            params['cosine'] = self.config.cosine
         if self.config.scrub is not None:
             params['scrub'] = self.config.scrub
         if self.config.fd_th is not None:
             params['fd_th'] = self.config.fd_th
         if self.config.dvars_th is not None:
             params['dvars_th'] = self.config.dvars_th
-        if self.config.tr is not None:
-            params['tr'] = self.config.tr
-        if self.config.include is not None:
-            params['include'] = self.config.include
-        if self.config.exclude is not None:
-            params['exclude'] = self.config.exclude
+        #if self.config.tr is not None:
+            #params['tr'] = self.config.tr
 
         return params

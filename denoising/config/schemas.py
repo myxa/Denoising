@@ -46,18 +46,9 @@ class NilearnConfoundsConfig(BaseModel):
         description="Global signal: basic, derivatives, power2, full"
     )
 
-    high_pass: Optional[float] = Field(
+    cosine: Optional[bool] = Field(
         default=None,
-        description="High pass filter cutoff in Hz"
-    )
-    low_pass: Optional[float] = Field(
-        default=None,
-        description="Low pass filter cutoff in Hz"
-    )
-
-    cosine: Optional[Union[int, str]] = Field(
-        default=None,
-        description="Cosine regressors: number or 'full'"
+        description="Cosine regressors: true, false"
     )
 
     scrub: Optional[int] = Field(
@@ -71,19 +62,6 @@ class NilearnConfoundsConfig(BaseModel):
     dvars_th: Optional[float] = Field(
         default=None,
         description="DVARS threshold"
-    )
-
-    tr: Optional[float] = Field(
-        default=None,
-        description="Repetition time in seconds"
-    )
-    include: Optional[List[str]] = Field(
-        default=None,
-        description="List of specific confounds to include"
-    )
-    exclude: Optional[List[str]] = Field(
-        default=None,
-        description="List of confounds to exclude"
     )
 
     @field_validator("motion", "global_signal")
@@ -115,7 +93,8 @@ class DenoisingConfig(BaseModel):
 
     smoothing_fwhm: float = None
     detrend: bool = True
-    standardize: Union[str, bool] = False
+    standardize: Optional[str] = None
+    standardize_confounds: Optional[bool] = True
     low_pass: Optional[float] = None
     high_pass: Optional[float] = None
     t_r: Optional[float] = None
@@ -123,8 +102,8 @@ class DenoisingConfig(BaseModel):
     @field_validator("standardize")
     @classmethod
     def validate_standardize(cls, v: str) -> str:
-        if v not in ["zscore", "psc", False]:
-            raise ValueError("Standardize must be zscore, psc, or false")
+        if v not in ["zscore", "psc", None]:
+            raise ValueError("Standardize must be zscore, psc, or None")
         return v
 
 
@@ -158,3 +137,6 @@ class PipelineConfig(BaseModel):
     confounds: NilearnConfoundsConfig = Field(default_factory=NilearnConfoundsConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+class ConfoundsConfig(BaseModel):
+    pass

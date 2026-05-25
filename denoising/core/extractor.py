@@ -24,6 +24,7 @@ class TimeSeriesExtractor:
         bold_img: str,
         masker: NiftiLabelsMasker,
         confounds: Optional[np.ndarray] = None,
+        sample_mask: Optional[np.ndarray] = None,
     ) -> pd.DataFrame:
         """Extract time-series from BOLD image.
 
@@ -37,7 +38,9 @@ class TimeSeriesExtractor:
         """
         logger.info(f"Extracting time-series from {bold_img}")
 
-        timeseries = masker.fit_transform(bold_img, confounds=confounds)
+        timeseries = masker.fit_transform(bold_img, 
+                                          confounds=confounds,
+                                          sample_mask=sample_mask)
 
         region_names = self._get_region_names(masker)
         df = pd.DataFrame(timeseries, columns=region_names)
@@ -55,7 +58,7 @@ class TimeSeriesExtractor:
             List of region names.
         """
         if hasattr(masker, "labels") and masker.labels is not None:
-            return masker.labels
+            return masker.labels[1:] # not include background
         return [f"region_{i}" for i in range(masker.n_elements_)]
 
     def save_timeseries(

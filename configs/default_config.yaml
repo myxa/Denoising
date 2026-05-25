@@ -29,8 +29,6 @@ confounds:
   fd_th: null  # Framewise displacement threshold
   dvars_th: null  # DVARS threshold
   tr: null  # Repetition time in seconds
-  include: null  # List of specific confounds to include
-  exclude: null  # List of confounds to exclude
 
 # Output Configuration
 output:

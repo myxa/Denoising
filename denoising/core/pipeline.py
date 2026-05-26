@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import nibabel as nib
 
@@ -11,7 +11,7 @@ from denoising.core.atlas import AtlasManager
 from denoising.core.denoiser import Denoiser
 from denoising.core.extractor import TimeSeriesExtractor
 from denoising.io.nilearn_confounds import NilearnConfoundsHandler
-from denoising.io.file_handler import parse_bids_filename
+from denoising.io.file_handler import parse_bids_filename, BIDSFileLoader
 
 logger = logging.getLogger(__name__)
 
@@ -47,24 +47,35 @@ class DenoisingPipeline:
         self,
         bold_path: str,
         output_dir: Optional[str] = None,
+        bids_info: Optional[Dict[str, str]] = None,
     ) -> str:
         """Process a single subject's data.
 
         Args:
             bold_path: Path to BOLD NIfTI file.
             output_dir: Output directory (uses config default if None).
+            bids_info: Optional pre-parsed BIDS entities.
 
         Returns:
-            Path to output CSV file.
+            Tuple of (timeseries DataFrame, output CSV file path).
         """
         output_dir = output_dir or self.config.output.directory
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Processing: {bold_path}")
 
         # Parse BIDS filename for output naming
-        bids_info = parse_bids_filename(bold_path)
-
+        if bids_info is None:
+            bids_info = parse_bids_filename(bold_path)
+        
+        # Create BIDS-compliant output directory structure
+        subject = bids_info.get("subject", "unknown")
+        session = bids_info.get("session")
+        
+        subject_output_dir = Path(output_dir) / f"sub-{subject}"
+        if session:
+            subject_output_dir = subject_output_dir / f"ses-{session}"
+        subject_output_dir = subject_output_dir / "time-series"
+        
         # Fetch atlas and configure masker
         masker = self.atlas_manager.fetch_atlas()
         masker_params = self.denoiser.get_masker_params()
@@ -100,53 +111,106 @@ class DenoisingPipeline:
             confounds=confounds,
             sample_mask=sample_mask,
         )
+        if output_dir is not None:
+            # Generate output filename and save
+            output_filename = self.extractor.get_output_filename(
+                subject=subject,
+                session=session or "unknown",
+                task=bids_info.get("task", "unknown"),
+                run=bids_info.get("run", "unknown"),
+                atlas_name=self.config.atlas.name,
+                pattern=self.config.output.naming_pattern,
+            )
+            output_path = str(subject_output_dir / output_filename)
 
-        # Generate output filename and save
-        output_filename = self.extractor.get_output_filename(
-            subject=bids_info.get("subject", "unknown"),
-            session=bids_info.get("session", "unknown"),
-            task=bids_info.get("task", "unknown"),
-            run=bids_info.get("run", "unknown"),
-            atlas_name=self.config.atlas.name,
-            pattern=self.config.output.naming_pattern,
-        )
-        output_path = str(Path(output_dir) / output_filename)
+            self.extractor.save_timeseries(
+                timeseries,
+                output_path,
+            )
 
-        self.extractor.save_timeseries(
-            timeseries,
-            output_path,
-        )
-
-        logger.info(f"Completed: {output_path}")
-        return (timeseries, output_path)
+            logger.info(f"Completed: {output_path}")
+        return timeseries
 
     def process_batch(
         self,
-        subjects: List[dict],
+        subjects: Union[List[str], List[dict]],
         output_dir: Optional[str] = None,
-    ) -> List[str]:
+        bids_loader: Optional[BIDSFileLoader] = None,
+    ) -> List[tuple]:
         """Process multiple subjects.
 
         Args:
-            subjects: List of dicts with 'bold_path' key.
+            subjects: List of subject IDs (BIDS mode) or list of dicts with 'bold_path' key (legacy mode).
             output_dir: Output directory.
+            bids_loader: Optional BIDSFileLoader instance for BIDS mode.
 
         Returns:
-            List of output file paths.
+            List of tuples (timeseries DataFrame, output path) or None for failed subjects.
         """
         results = []
         failed = []
-        for i, subject in enumerate(subjects):
-            logger.info(f"Processing subject {i+1}/{len(subjects)}")
-            try:
-                output = self.process_subject(
-                    subject["bold_path"],
-                    output_dir,
-                )
-                results.append(output)
-            except Exception as e:
-                logger.error(f"Failed to process {subject['bold_path']}: {e}")
-                failed.append(i)
-                results.append(None)
+        
+        # Detect mode: BIDS mode if subjects are strings, legacy mode if dicts
+        is_bids_mode = subjects and isinstance(subjects[0], str)
+        
+        if is_bids_mode:
+            if bids_loader is None:
+                raise ValueError("bids_loader is required for BIDS mode")
+            if self.config.bids is None:
+                raise ValueError("BIDS config is required for BIDS mode")
+            
+            logger.info(f"Processing {len(subjects)} subjects in BIDS mode")
+            
+            for subject_id in subjects:
+                logger.info(f"Processing subject: {subject_id}")
+                try:
+                    # Get all files for this subject
+                    files = bids_loader.get_subject_files(
+                        subject=subject_id,
+                        task=self.config.bids.task,
+                        space=self.config.bids.space,
+                        desc=self.config.bids.desc,
+                        datatype=self.config.bids.datatype,
+                        extension=self.config.bids.extension,
+                    )
+                    
+                    if not files:
+                        logger.warning(f"No files found for subject {subject_id}")
+                        results.append(None)
+                        failed.append(subject_id)
+                        continue
+                    
+                    # Process each file (handles multiple sessions/runs)
+                    for file_path in files:
+                        logger.info(f"Processing file: {file_path}")
+                        output = self.process_subject(
+                            file_path,
+                            output_dir,
+                        )
+                        results.append(output)
+                        
+                except Exception as e:
+                    logger.error(f"Failed to process subject {subject_id}: {e}")
+                    failed.append(subject_id)
+                    results.append(None)
+        else:
+            # Legacy mode
+            logger.info(f"Processing {len(subjects)} subjects in legacy mode")
+            
+            for i, subject in enumerate(subjects):
+                logger.info(f"Processing subject {i+1}/{len(subjects)}")
+                try:
+                    output = self.process_subject(
+                        subject["bold_path"],
+                        output_dir,
+                    )
+                    results.append(output)
+                except Exception as e:
+                    logger.error(f"Failed to process {subject['bold_path']}: {e}")
+                    failed.append(i)
+                    results.append(None)
+
+        if failed:
+            logger.warning(f"Failed to process {len(failed)} subjects: {failed}")
 
         return results

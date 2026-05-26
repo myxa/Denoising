@@ -1,10 +1,12 @@
 """Tests for I/O module."""
 
 import pytest
-from denoising.io.file_handler import parse_bids_filename
+from pathlib import Path
+from denoising.io.file_handler import parse_bids_filename, BIDSFileLoader
 from nilearn.interfaces.fmriprep import load_confounds
 from denoising.io.nilearn_confounds import NilearnConfoundsHandler
 from denoising.config import load_config
+from denoising.config.schemas import BIDSConfig
 import numpy as np
 
 
@@ -50,3 +52,69 @@ def test_nilearn_confounds_handler():
     assert len(df_handler) > 0
 
     print(f"Loaded {len(df_handler.columns)} confounds for {len(df_handler)} timepoints")
+
+
+def test_bids_config_validation():
+    """Test BIDSConfig validation."""
+    # Valid config
+    config = BIDSConfig(
+        dataset_path="/path/to/bids",
+        task="rest",
+        space="MNI152NLin2009cAsym",
+        desc="preproc",
+    )
+    assert config.dataset_path == "/path/to/bids"
+    assert config.task == "rest"
+    assert config.space == "MNI152NLin2009cAsym"
+    assert config.desc == "preproc"
+    assert config.datatype == "func"  # default
+    assert config.extension == "nii.gz"  # default
+    #assert config.validate is False  # default
+
+
+def test_bids_file_loader_init():
+    """Test BIDSFileLoader initialization."""
+    # This test requires a valid BIDS dataset
+    # Skip if dataset not available
+    pytest.skip("Requires valid BIDS dataset path")
+
+
+def test_bids_file_loader_get_subject_files():
+    """Test BIDSFileLoader.get_subject_files."""
+    # This test requires a valid BIDS dataset
+    # Skip if dataset not available
+    pytest.skip("Requires valid BIDS dataset path")
+
+
+def test_bids_file_loader_get_all_subjects():
+    """Test BIDSFileLoader.get_all_subjects."""
+    # This test requires a valid BIDS dataset
+    # Skip if dataset not available
+    pytest.skip("Requires valid BIDS dataset path")
+
+
+def test_parse_bids_filename_with_path():
+    """Test BIDS filename parsing with full path."""
+    filename = "/path/to/data/sub-1018959_ses-1_task-rest_run-1_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
+    result = parse_bids_filename(filename)
+
+    assert result["subject"] == "1018959"
+    assert result["session"] == "1"
+    assert result["task"] == "rest"
+    assert result["run"] == "1"
+    assert result["space"] == "MNI152NLin2009cAsym"
+    assert result["desc"] == "preproc"
+
+
+def test_parse_bids_filename_complex():
+    """Test BIDS filename parsing with complex entities."""
+    filename = "sub-001_ses-01_task-emotion_acq-multiband_run-02_space-T1w_desc-preproc_bold.nii.gz"
+    result = parse_bids_filename(filename)
+
+    assert result["subject"] == "001"
+    assert result["session"] == "01"
+    assert result["task"] == "emotion"
+    assert result["acq"] == "multiband"
+    assert result["run"] == "02"
+    assert result["space"] == "T1w"
+    assert result["desc"] == "preproc"

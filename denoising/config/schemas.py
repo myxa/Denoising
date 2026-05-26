@@ -111,8 +111,19 @@ class OutputConfig(BaseModel):
     """Output configuration."""
 
     directory: str = "./output"
-    naming_pattern: str = "{subject}_{session}_{task}_{run}_atlas-{atlas_name}.csv"
-    include_metadata: bool = True
+    naming_pattern: str = "sub-{subject}_ses-{session}_task-{task}_run-{run}_atlas-{atlas_name}.csv"
+
+
+class BIDSConfig(BaseModel):
+    """BIDS dataset configuration."""
+
+    dataset_path: str = Field(..., description="Path to BIDS dataset root")
+    task: Optional[str] = Field(None, description="Task name (e.g., 'rest')")
+    space: Optional[str] = Field(None, description="Space (e.g., 'MNI152NLin2009cAsym')")
+    desc: Optional[str] = Field(None, description="Description (e.g., 'preproc')")
+    datatype: str = "func"
+    extension: str = "nii.gz"
+    #validate: bool = False
 
 
 class LoggingConfig(BaseModel):
@@ -137,6 +148,7 @@ class PipelineConfig(BaseModel):
     confounds: NilearnConfoundsConfig = Field(default_factory=NilearnConfoundsConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    bids: Optional[BIDSConfig] = Field(None, description="BIDS dataset configuration")
 
 class ConfoundsConfig(BaseModel):
     pass

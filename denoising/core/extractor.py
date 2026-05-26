@@ -84,7 +84,7 @@ class TimeSeriesExtractor:
         task: str,
         run: str,
         atlas_name: str,
-        pattern: str = "{subject}_{session}_{task}_{run}_atlas-{atlas_name}.csv",
+        pattern: str = "sub-{subject}_ses-{session}_task-{task}_run-{run}_atlas-{atlas_name}.csv",
     ) -> str:
         """Generate output filename from BIDS entities.
 

@@ -119,6 +119,7 @@ class DenoisingPipeline:
                 task=bids_info.get("task", "unknown"),
                 run=bids_info.get("run", "unknown"),
                 atlas_name=self.config.atlas.name,
+                n_rois=self.config.atlas.n_regions,
                 pattern=self.config.output.naming_pattern,
             )
             output_path = str(subject_output_dir / output_filename)
@@ -133,14 +134,14 @@ class DenoisingPipeline:
 
     def process_batch(
         self,
-        subjects: Union[List[str], List[dict]],
+        subjects: Union[str, List[str], List[dict]],
         output_dir: Optional[str] = None,
         bids_loader: Optional[BIDSFileLoader] = None,
     ) -> List[tuple]:
         """Process multiple subjects.
 
         Args:
-            subjects: List of subject IDs (BIDS mode) or list of dicts with 'bold_path' key (legacy mode).
+            subjects: 'all' for all subjects in dataset (if bids provided), List of subject IDs (BIDS mode) or list of dicts with 'bold_path' key (legacy mode).
             output_dir: Output directory.
             bids_loader: Optional BIDSFileLoader instance for BIDS mode.
 
@@ -149,9 +150,13 @@ class DenoisingPipeline:
         """
         results = []
         failed = []
+
+        if subjects == "all":
+            subjects = bids_loader.get_all_subjects()
+            
         
         # Detect mode: BIDS mode if subjects are strings, legacy mode if dicts
-        is_bids_mode = subjects and isinstance(subjects[0], str)
+        is_bids_mode = True if isinstance(bids_loader, BIDSFileLoader) else False
         
         if is_bids_mode:
             if bids_loader is None:
@@ -193,6 +198,7 @@ class DenoisingPipeline:
                     logger.error(f"Failed to process subject {subject_id}: {e}")
                     failed.append(subject_id)
                     results.append(None)
+                    
         else:
             # Legacy mode
             logger.info(f"Processing {len(subjects)} subjects in legacy mode")
@@ -211,6 +217,7 @@ class DenoisingPipeline:
                     results.append(None)
 
         if failed:
+            print('Failed to process:', failed)
             logger.warning(f"Failed to process {len(failed)} subjects: {failed}")
 
         return results

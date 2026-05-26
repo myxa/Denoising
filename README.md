@@ -37,17 +37,61 @@ pip install -e ".[dev,jupyter]"
 
 ### Command Line Interface
 
-Process a single subject:
+The CLI supports three modes: **BIDS mode** (recommended), **legacy single subject**, and **legacy batch**.
+
+#### BIDS Mode (Recommended)
+
+Process a single subject from a BIDS dataset:
 
 ```bash
 fmri-denoise \
     --config configs/default_config.yaml \
-    --bold path/to/bold.nii.gz \
-    --confounds path/to/confounds.tsv \
+    --bids-path /path/to/bids/dataset \
+    --subject 01 \
     --output-dir ./output
 ```
 
-Process multiple subjects:
+Process multiple subjects from a BIDS dataset:
+
+```bash
+fmri-denoise \
+    --config configs/default_config.yaml \
+    --bids-path /path/to/bids/dataset \
+    --subjects 01 02 03 \
+    --task rest \
+    --output-dir ./output
+```
+
+Process all subjects from a BIDS dataset:
+
+```bash
+fmri-denoise \
+    --config configs/default_config.yaml \
+    --bids-path /path/to/bids/dataset \
+    --subjects all \
+    --task rest \
+    --output-dir ./output
+```
+
+BIDS filtering options:
+- `--task`: Task name (e.g., 'rest')
+- `--space`: Space (default: MNI152NLin2009cAsym)
+- `--desc`: Description (default: preproc)
+
+#### Legacy Single Subject Mode
+
+Process a single subject (confounds auto-detected from BIDS naming):
+
+```bash
+fmri-denoise \
+    --config configs/default_config.yaml \
+    --bold path/to/sub-01_task-rest_bold.nii.gz \
+    --output-dir ./output
+```
+
+#### Legacy Batch Mode
+
+Process multiple subjects from a list file:
 
 ```bash
 fmri-denoise \
@@ -56,11 +100,11 @@ fmri-denoise \
     --output-dir ./output
 ```
 
-The `subjects_list.txt` file should contain one subject per line:
+The `subjects_list.txt` file should contain one BOLD file path per line:
 
 ```
-path/to/subject1_bold.nii.gz,path/to/subject1_confounds.tsv
-path/to/subject2_bold.nii.gz,path/to/subject2_confounds.tsv
+path/to/subject1_bold.nii.gz
+path/to/subject2_bold.nii.gz
 ```
 
 ### Python API
@@ -68,6 +112,7 @@ path/to/subject2_bold.nii.gz,path/to/subject2_confounds.tsv
 ```python
 from denoising import DenoisingPipeline
 from denoising.config import load_config
+from denoising.io.file_handler import BIDSFileLoader
 
 # Load configuration
 config = load_config("configs/default_config.yaml")
@@ -75,19 +120,23 @@ config = load_config("configs/default_config.yaml")
 # Initialize pipeline
 pipeline = DenoisingPipeline(config)
 
-# Process single subject
-output_file = pipeline.process_subject(
-    bold_path="path/to/bold.nii.gz",
-    confounds_path="path/to/confounds.tsv",
+# Process single subject (confounds auto-detected)
+timeseries = pipeline.process_subject(
+    bold_path="path/to/sub-01_task-rest_bold.nii.gz",
     output_dir="./output"
 )
 
-# Process multiple subjects
+# Process multiple subjects (legacy mode)
 subjects = [
-    {"bold_path": "path/to/sub1_bold.nii.gz", "confounds_path": "path/to/sub1_confounds.tsv"},
-    {"bold_path": "path/to/sub2_bold.nii.gz", "confounds_path": "path/to/sub2_confounds.tsv"},
+    {"bold_path": "path/to/sub1_bold.nii.gz"},
+    {"bold_path": "path/to/sub2_bold.nii.gz"},
 ]
 outputs = pipeline.process_batch(subjects, output_dir="./output")
+
+# Process BIDS dataset
+bids_loader = BIDSFileLoader("/path/to/bids/dataset")
+subjects = ["01", "02", "03"]
+outputs = pipeline.process_batch(subjects, output_dir="./output", bids_loader=bids_loader)
 ```
 
 ## Configuration
@@ -112,6 +161,7 @@ denoising:
   smoothing_fwhm: 6.0    # Spatial smoothing FWHM (mm)
   detrend: true          # Apply linear detrending
   standardize: "zscore"  # Standardization: zscore, psc, or false
+  standardize_confounds: true  # Standardize confounds before regression
   low_pass: 0.1          # Low-pass filter cutoff (Hz)
   high_pass: 0.01        # High-pass filter cutoff (Hz)
   t_r: null              # Repetition time (s), auto-detected if null
@@ -119,23 +169,36 @@ denoising:
 
 #### Confounds
 
+Uses nilearn's `load_confounds` format:
+
 ```yaml
 confounds:
-  strategy: "custom"      # Selection strategy: custom, simple, scrubbing
-  columns:                # Confounds to select (for custom strategy)
-    - "csf"
-    - "white_matter"
-    - "global_signal"
-    - "trans_x"
-    - "trans_y"
-    - "trans_z"
-    - "rot_x"
-    - "rot_y"
-    - "rot_z"
-  derivatives:            # Derivatives to compute
-    csf: ["power2"]
-    white_matter: ["power2"]
-  fd_threshold: null      # Framewise displacement threshold (for scrubbing)
+  strategy: ["motion", "compcor"]  # Confounds strategies to use
+  motion: "basic"                  # Motion options: basic, derivatives, power2, full
+  compcor: "anat_combined"         # CompCor options: anat_combined, anat_separated, temp_combined, temp_separated
+  n_compcor: 5                     # Number of CompCor components
+  global_signal: null              # Global signal: basic, derivatives, power2, full, or null
+  high_pass: null                  # High-pass filter for confounds (Hz)
+  low_pass: null                   # Low-pass filter for confounds (Hz)
+  cosine: null                     # Cosine regressors: number or "full"
+  scrub: null                      # Number of volumes to remove (scrubbing)
+  fd_th: null                      # Framewise displacement threshold
+  dvars_th: null                   # DVARS threshold
+  tr: null                         # Repetition time for confounds (s)
+```
+
+#### BIDS Configuration
+
+For BIDS mode file discovery:
+
+```yaml
+bids:
+  dataset_path: null      # Path to BIDS dataset root (required for BIDS mode)
+  task: null              # Task name (e.g., 'rest')
+  space: "MNI152NLin2009cAsym"  # Space (e.g., 'MNI152NLin2009cAsym')
+  desc: "preproc"         # Description (e.g., 'preproc')
+  datatype: "func"        # Data type
+  extension: "nii.gz"     # File extension
 ```
 
 #### Output
@@ -143,8 +206,16 @@ confounds:
 ```yaml
 output:
   directory: "./output"
-  naming_pattern: "{subject}_{session}_{task}_{run}_atlas-{atlas_name}.csv"
-  include_metadata: true
+  naming_pattern: "sub-{subject}_ses-{session}_task-{task}_run-{run}_atlas-{atlas_name}.csv"
+```
+
+Output is organized in BIDS-compliant directory structure:
+```
+output/
+└── sub-01/
+    └── ses-1/
+        └── time-series/
+            └── sub-01_ses-1_task-rest_run-1_atlas-schaefer_2018.csv
 ```
 
 ## Project Structure

@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+from tqdm.auto import tqdm
 
 import nibabel as nib
 
@@ -84,16 +85,15 @@ class DenoisingPipeline:
         confounds, sample_mask = self.confounds_handler.load_and_select(bold_path)
 
         # IF BOTH COSINES AND BANDPASS 
-        #if "cosine" in confounds and (
-        #    masker_params['low_pass'] is not None and masker_params['high_pass'] is not None):
-        #    raise ValueError("Both cosines and bandpass filters are in confounds. Please remove one of them.")
+        if self.confounds_handler.config.high_pass and masker_params['high_pass']:
+            raise ValueError("Both DCT and bandpass filters of masker. Please remove one of them.")
         
-        #if "cosine" in confounds and masker_params['detrend']:
-        #    raise ValueError("Using both cosine transforms from fmriprep confounds and detrend of masker is redundant")
+        if self.confounds_handler.config.high_pass and masker_params['detrend']:
+            raise ValueError("Using both DCT from fmriprep confounds and detrend of masker is redundant")
         
         # Load BOLD header to get TR if not specified
         # needed only for masker's bandpass
-        if self.denoiser.t_r is None:# and "cosine" not in confounds:
+        if self.denoiser.t_r is None and self.denoiser.low_pass is not None:
             bold_img = nib.load(bold_path)
             self.denoiser.t_r = bold_img.header.get_zooms()[-1]
             masker_params['t_r'] = self.denoiser.t_r
@@ -102,7 +102,7 @@ class DenoisingPipeline:
         for key, value in masker_params.items():
             setattr(masker, key, value)
 
-        logger.info(f"Selected confounds: {confounds}")
+        logger.info(f"Selected confounds: {confounds.columns.tolist()}")
 
         # Extract time-series
         timeseries = self.extractor.extract_timeseries(
@@ -166,7 +166,7 @@ class DenoisingPipeline:
             
             logger.info(f"Processing {len(subjects)} subjects in BIDS mode")
             
-            for subject_id in subjects:
+            for subject_id in tqdm(subjects):
                 logger.info(f"Processing subject: {subject_id}")
                 try:
                     # Get all files for this subject

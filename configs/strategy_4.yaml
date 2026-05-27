@@ -9,21 +9,21 @@ atlas:
 # Denoising Parameters passed to nifti labels masker 
 denoising:
   smoothing_fwhm: 4.0  # mm
-  detrend: true
-  standardize: null  # options: zscore, psc, false, none
+  detrend: false
+  standardize: null  # options: zscore, zscore_sample, psc, null
   standardize_confounds: true # true false
-  low_pass: 0.1  # Hz
-  high_pass: 0.009  # Hz
+  low_pass: 0.08  # Hz
+  high_pass: null  # Hz
   t_r: null  # nedeed if low and high pass passed and Will be read from BOLD header if null
 
 # Confounds Configuration using nilearn load_confounds
 confounds:
-  strategy: ["motion", "compcor", "high_pass", "global_signal"]
+  strategy: ["motion", "compcor", "high_pass", "global_signal", "high_pass"]
   motion: "full"
   compcor: "anat_combined"
   n_compcor: 10
   global_signal: "full"
-  cosine: false
+  high_pass: true
   fd_th: null
   dvars_th: null
 

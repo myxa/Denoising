@@ -46,9 +46,9 @@ class NilearnConfoundsConfig(BaseModel):
         description="Global signal: basic, derivatives, power2, full"
     )
 
-    cosine: Optional[bool] = Field(
+    high_pass: Optional[bool] = Field(
         default=None,
-        description="Cosine regressors: true, false"
+        description="High pass - descrete cosine regressors: true, false"
     )
 
     scrub: Optional[int] = Field(
@@ -102,7 +102,7 @@ class DenoisingConfig(BaseModel):
     @field_validator("standardize")
     @classmethod
     def validate_standardize(cls, v: str) -> str:
-        if v not in ["zscore", "psc", None]:
+        if v not in ["zscore", "psc", "zscore_sample", None]:
             raise ValueError("Standardize must be zscore, psc, or None")
         return v
 

@@ -50,12 +50,10 @@ class Denoiser:
             "detrend": self.detrend,
             "standardize": self.standardize,
             "standardize_confounds": self.standardize_confounds,
+            "low_pass": self.low_pass,
+            "high_pass": self.high_pass,
         }
 
-        if self.low_pass is not None:
-            params["low_pass"] = self.low_pass
-        if self.high_pass is not None:
-            params["high_pass"] = self.high_pass
         if self.t_r is not None:
             params["t_r"] = self.t_r
 

@@ -296,11 +296,6 @@ def main():
                     args.verbose,
                 )
                 print(f"Processed {len(outputs)} files")
-                for i, out in enumerate(outputs):
-                    if out:
-                        print(f"  {i+1}. {out[1]}")
-                    else:
-                        print(f"  {i+1}. Failed")
             else:
                 print("Error: --subject or --subjects required with --bids-path", file=sys.stderr)
                 sys.exit(1)

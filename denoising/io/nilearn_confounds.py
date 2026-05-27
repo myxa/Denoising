@@ -38,7 +38,7 @@ class NilearnConfoundsHandler:
 
         confounds_df, sample_mask = load_confounds(bold_path, **params)
 
-        if self.config.cosine is False:
+        if self.config.high_pass is False:
             confounds_df = confounds_df.loc[:, ~confounds_df.columns.str.startswith('cosine')]
 
         logger.info(f"Loaded {len(confounds_df.columns)} confounds")
@@ -69,7 +69,5 @@ class NilearnConfoundsHandler:
             params['fd_th'] = self.config.fd_th
         if self.config.dvars_th is not None:
             params['dvars_th'] = self.config.dvars_th
-        #if self.config.tr is not None:
-            #params['tr'] = self.config.tr
 
         return params

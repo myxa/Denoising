@@ -28,7 +28,6 @@ confounds:
   scrub: null  # Number of volumes to remove
   fd_th: null  # Framewise displacement threshold
   dvars_th: null  # DVARS threshold
-  tr: null  # Repetition time in seconds
 
 # Output Configuration
 output:

@@ -46,7 +46,7 @@ def coverage(atlas, mask):
                             labels_img=atlas_img,
                             labels=masker_labels,
                             background_label=0,
-                            mask_img=mask,
+                            mask_img=mask, # средняя маска
                             smoothing_fwhm=None,
                             standardize=False,
                             strategy="sum",

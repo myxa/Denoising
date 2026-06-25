@@ -60,6 +60,8 @@ class AtlasManager:
                 labels=atlas.labels,
                 standardize=False,
             )
+
+            
         elif self.atlas_name.lower() == "brainnetome":
             atlas = self._fetch_brainnetome_atlas(cache_dir)
             self._atlas_data = atlas

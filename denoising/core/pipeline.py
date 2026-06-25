@@ -170,7 +170,7 @@ class DenoisingPipeline:
                 logger.info(f"Processing subject: {subject_id}")
                 try:
                     # Get all files for this subject
-                    files = bids_loader.get_subject_files(
+                    files = bids_loader.get_subject_img(
                         subject=subject_id,
                         task=self.config.bids.task,
                         space=self.config.bids.space,

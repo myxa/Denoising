@@ -37,9 +37,8 @@ output:
 bids:
   dataset_path: "/data/Projects/ABIDE2/ABIDEII-BNI_1/derivatives"  # Path to BIDS dataset root (required for BIDS mode)
   task: "rest"  # Task name (e.g., 'rest')
+  session: null
   space: "MNI152NLin2009cAsym"  # Space (e.g., 'MNI152NLin2009cAsym')
-  desc: "preproc"  # Description (e.g., 'preproc')
-  datatype: "func"
   extension: "nii.gz"
 
 # Logging

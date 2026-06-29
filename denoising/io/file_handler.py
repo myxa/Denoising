@@ -18,7 +18,6 @@ class BIDSFileLoader:
 
         Args:
             bids_path: Path to BIDS dataset root.
-            validate: Whether to validate BIDS dataset.
         """
         try:
             from bids import BIDSLayout
@@ -33,23 +32,24 @@ class BIDSFileLoader:
     def get_subject_img(
         self,
         subject: str,
+        datatype: str = "func", # always
+        extension: str = "nii.gz", # always
+        desc: str = "preproc", # always preproc
         task: Optional[str] = None,
         space: Optional[str] = None,
-        desc: Optional[str] = None,
         session: Optional[str] = None,
-        datatype: str = "func",
-        extension: str = "nii.gz",
+        
     ) -> List[str]:
-        """Get all BOLD files for a subject matching criteria.
+        """Get all BOLD image files for a subject matching criteria.
 
         Args:
             subject: Subject ID (e.g., '01').
-            task: Task name (e.g., 'rest').
-            space: Space (e.g., 'MNI152NLin2009cAsym').
-            desc: Description (e.g., 'preproc').
-            session: Session ID (optional).
             datatype: Data type (default: 'func').
             extension: File extension (default: 'nii.gz').
+            desc: Description (default: 'preproc').
+            task: Task name (e.g., 'rest', optional).
+            space: Space (e.g., 'MNI152NLin2009cAsym', optional).
+            session: Session ID (optional).
 
         Returns:
             List of file paths matching the criteria.
@@ -77,23 +77,23 @@ class BIDSFileLoader:
     def get_subject_mask(
         self,
         subject: str,
+        datatype: str = "func", # always
+        extension: str = "nii.gz", # always
+        desc: str = "brain", # always
         task: Optional[str] = None,
         space: Optional[str] = None,
-        desc: Optional[str] = None,
         session: Optional[str] = None,
-        datatype: str = "mask",
-        extension: str = "nii.gz",
     ) -> List[str]:
-        """Get all BOLD files for a subject matching criteria.
+        """Get all mask files for a subject matching criteria.
 
         Args:
             subject: Subject ID (e.g., '01').
-            task: Task name (e.g., 'rest').
-            space: Space (e.g., 'MNI152NLin2009cAsym').
-            desc: Description (e.g., 'preproc').
-            session: Session ID (optional).
             datatype: Data type (default: 'func').
             extension: File extension (default: 'nii.gz').
+            desc: Description (default: 'brain').
+            task: Task name (e.g., 'rest', optional).
+            space: Space (e.g., 'MNI152NLin2009cAsym', optional).
+            session: Session ID (optional).
 
         Returns:
             List of file paths matching the criteria.

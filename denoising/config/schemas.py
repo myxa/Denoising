@@ -121,8 +121,9 @@ class BIDSConfig(BaseModel):
     task: Optional[str] = Field(None, description="Task name (e.g., 'rest')")
     space: Optional[str] = Field(None, description="Space (e.g., 'MNI152NLin2009cAsym')")
     desc: Optional[str] = Field(None, description="Description (e.g., 'preproc')")
-    datatype: str = "func"
-    extension: str = "nii.gz"
+    session: Optional[str] = Field(None, description="Session (e.g., '1')")
+    #datatype: str = "func"
+    #extension: str = "nii.gz"
     #validate: bool = False
 
 

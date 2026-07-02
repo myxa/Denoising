@@ -6,13 +6,13 @@ from typing import Dict, List, Optional, Union
 from tqdm.auto import tqdm
 
 import nibabel as nib
+from nilearn.maskers import NiftiLabelsMasker
 
 from denoising.config.schemas import PipelineConfig
 from denoising.core.atlas import AtlasManager
-from denoising.core.denoiser import Denoiser
-from denoising.core.extractor import TimeSeriesExtractor
+from denoising.core.extractor import SignalExtractor
 from denoising.io.nilearn_confounds import NilearnConfoundsHandler
-from denoising.io.file_handler import parse_bids_filename, BIDSFileLoader
+from denoising.io.file_handler import BIDSFileLoader
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,9 @@ class DenoisingPipeline:
             resolution=config.atlas.resolution,
             n_regions=config.atlas.n_regions,
         )
-        self.denoiser = Denoiser(
+        self.atlas_data = self.atlas_manager.fetch_atlas()
+
+        self.extractor = SignalExtractor(
             smoothing_fwhm=config.denoising.smoothing_fwhm,
             detrend=config.denoising.detrend,
             standardize=config.denoising.standardize,
@@ -41,183 +43,184 @@ class DenoisingPipeline:
             high_pass=config.denoising.high_pass,
             t_r=config.denoising.t_r,
         )
-        self.extractor = TimeSeriesExtractor()
         self.confounds_handler = NilearnConfoundsHandler(config.confounds)
 
     def process_subject(
         self,
         bold_path: str,
+        mask_path: Optional[str] = None,
         output_dir: Optional[str] = None,
-        bids_info: Optional[Dict[str, str]] = None,
+        bids_info: Dict[str, str] = None,
     ) -> str:
         """Process a single subject's data.
 
         Args:
             bold_path: Path to BOLD NIfTI file.
+            mask_path: Optional path to a mask image.
             output_dir: Output directory (uses config default if None).
-            bids_info: Optional pre-parsed BIDS entities.
+            bids_info: Pre-parsed BIDS entities (required).
 
         Returns:
             Tuple of (timeseries DataFrame, output CSV file path).
         """
+        if bids_info is None:
+            raise ValueError("bids_info is required. Use BIDSFileLoader.get_bids_entities() to extract entities.")
+
         output_dir = output_dir or self.config.output.directory
 
         logger.info(f"Processing: {bold_path}")
 
-        # Parse BIDS filename for output naming
-        if bids_info is None:
-            bids_info = parse_bids_filename(bold_path)
-        
         # Create BIDS-compliant output directory structure
         subject = bids_info.get("subject", "unknown")
         session = bids_info.get("session")
-        
+
         subject_output_dir = Path(output_dir) / f"sub-{subject}"
         if session:
             subject_output_dir = subject_output_dir / f"ses-{session}"
         subject_output_dir = subject_output_dir / "time-series"
-        
+
         # Fetch atlas and configure masker
-        masker = self.atlas_manager.fetch_atlas()
-        masker_params = self.denoiser.get_masker_params()
+        masker = NiftiLabelsMasker(
+            labels_img=self.atlas_data.maps,
+            labels=self.atlas_data.labels,
+            mask_img=mask_path
+            )
 
         # Load and select confounds
         confounds, sample_mask = self.confounds_handler.load_and_select(bold_path)
 
-        # IF BOTH COSINES AND BANDPASS 
-        if self.confounds_handler.config.high_pass and masker_params['high_pass']:
-            raise ValueError("Both DCT and bandpass filters of masker. Please remove one of them.")
-        
-        if self.confounds_handler.config.high_pass and masker_params['detrend']:
-            raise ValueError("Using both DCT from fmriprep confounds and detrend of masker is redundant")
-        
-        # Load BOLD header to get TR if not specified
-        # needed only for masker's bandpass
-        if self.denoiser.t_r is None and self.denoiser.low_pass is not None:
+        # Conflict checks: DCT (from confounds) vs bandpass / detrend (from masker)
+        if self.confounds_handler.config.high_pass and self.extractor.high_pass is not None:
+            raise ValueError(
+                "Both DCT (from confounds) and bandpass filter (from masker) are enabled. "
+                "Please remove one of them."
+            )
+
+        if self.confounds_handler.config.high_pass and self.extractor.detrend:
+            raise ValueError(
+                "Using both DCT (from fmriprep confounds) and detrend (from masker) is redundant. "
+                "Please disable one of them."
+            )
+
+        # Detect TR from BOLD header if needed for bandpass filtering
+        detected_tr = None
+        if self.extractor.t_r is None and self.extractor.low_pass is not None:
             bold_img = nib.load(bold_path)
-            self.denoiser.t_r = bold_img.header.get_zooms()[-1]
-            masker_params['t_r'] = self.denoiser.t_r
-            logger.info(f"Detected TR: {self.denoiser.t_r} s")
-        
-        for key, value in masker_params.items():
-            setattr(masker, key, value)
+            detected_tr = bold_img.header.get_zooms()[-1]
+            logger.info(f"Detected TR: {detected_tr} s")
+
+        # Apply denoising parameters to the masker
+        self.extractor.configure_masker(masker, t_r=detected_tr)
 
         logger.info(f"Selected confounds: {confounds.columns.tolist()}")
 
         # Extract time-series
-        timeseries = self.extractor.extract_timeseries(
+        timeseries = self.extractor.extract(
             bold_path,
             masker,
             confounds=confounds,
             sample_mask=sample_mask,
         )
+
         if output_dir is not None:
             # Generate output filename and save
-            output_filename = self.extractor.get_output_filename(
+            output_filename = SignalExtractor.make_output_filename(
                 subject=subject,
-                session=session or "unknown",
-                task=bids_info.get("task", "unknown"),
-                run=bids_info.get("run", "unknown"),
+                session=session,
+                task=bids_info.get("task"),
+                run=bids_info.get("run"),
                 atlas_name=self.config.atlas.name,
                 n_rois=self.config.atlas.n_regions,
                 pattern=self.config.output.naming_pattern,
             )
             output_path = str(subject_output_dir / output_filename)
 
-            self.extractor.save_timeseries(
-                timeseries,
-                output_path,
-            )
+            SignalExtractor.save(timeseries, output_path)
 
             logger.info(f"Completed: {output_path}")
+
         return timeseries
 
     def process_batch(
         self,
-        subjects: Union[str, List[str], List[dict]],
+        subjects: Union[str, List[str]],
         output_dir: Optional[str] = None,
-        bids_loader: Optional[BIDSFileLoader] = None,
+        bids_loader: BIDSFileLoader = None,
     ) -> List[tuple]:
-        """Process multiple subjects.
+        """Process multiple subjects using BIDS dataset.
 
         Args:
-            subjects: 'all' for all subjects in dataset (if bids provided), List of subject IDs (BIDS mode) or list of dicts with 'bold_path' key (legacy mode).
+            subjects: 'all' for all subjects in dataset, or list of subject IDs.
             output_dir: Output directory.
-            bids_loader: Optional BIDSFileLoader instance for BIDS mode.
+            bids_loader: BIDSFileLoader instance.
 
         Returns:
             List of tuples (timeseries DataFrame, output path) or None for failed subjects.
         """
+        if bids_loader is None:
+            raise ValueError("bids_loader is required")
+        if self.config.bids is None:
+            raise ValueError("BIDS config is required")
+
         results = []
         failed = []
 
         if subjects == "all":
             subjects = bids_loader.get_all_subjects()
-            
-        
-        # Detect mode: BIDS mode if subjects are strings, legacy mode if dicts
-        is_bids_mode = True if isinstance(bids_loader, BIDSFileLoader) else False
-        
-        if is_bids_mode:
-            if bids_loader is None:
-                raise ValueError("bids_loader is required for BIDS mode")
-            if self.config.bids is None:
-                raise ValueError("BIDS config is required for BIDS mode")
-            
-            logger.info(f"Processing {len(subjects)} subjects in BIDS mode")
-            
-            for subject_id in tqdm(subjects):
-                logger.info(f"Processing subject: {subject_id}")
-                try:
-                    # Get all files for this subject
-                    files = bids_loader.get_subject_img(
-                        subject=subject_id,
-                        task=self.config.bids.task,
-                        space=self.config.bids.space,
-                        desc=self.config.bids.desc,
-                        datatype=self.config.bids.datatype,
-                        extension=self.config.bids.extension,
-                    )
-                    
-                    if not files:
-                        logger.warning(f"No files found for subject {subject_id}")
-                        results.append(None)
-                        failed.append(subject_id)
-                        continue
-                    
-                    # Process each file (handles multiple sessions/runs)
-                    for file_path in files:
-                        logger.info(f"Processing file: {file_path}")
-                        output = self.process_subject(
-                            file_path,
-                            output_dir,
-                        )
-                        results.append(output)
-                        
-                except Exception as e:
-                    logger.error(f"Failed to process subject {subject_id}: {e}")
-                    failed.append(subject_id)
+
+        logger.info(f"Processing {len(subjects)} subjects")
+
+        for subject_id in tqdm(subjects):
+            logger.info(f"Processing subject: {subject_id}")
+            try:
+                # Get all files for this subject
+                files = bids_loader.get_subject_img(
+                    subject=subject_id,
+                    task=self.config.bids.task,
+                    space=self.config.bids.space,
+                    desc="preproc",
+                    session=self.config.bids.session,
+                    datatype="func",
+                )
+                masks = bids_loader.get_subject_mask(
+                    subject=subject_id,
+                    task=self.config.bids.task,
+                    space=self.config.bids.space,
+                    desc="brain",
+                    session=self.config.bids.session,
+                    datatype="func",
+                )
+
+                if not files:
+                    logger.warning(f"No files found for subject {subject_id}")
                     results.append(None)
-                    
-        else:
-            # Legacy mode
-            logger.info(f"Processing {len(subjects)} subjects in legacy mode")
-            
-            for i, subject in enumerate(subjects):
-                logger.info(f"Processing subject {i+1}/{len(subjects)}")
-                try:
+                    failed.append(subject_id)
+                    continue
+
+                if masks:
+                    all_files = list(zip(files, masks))
+                else:
+                    all_files = [(f, None) for f in files]
+
+                # Process each file (handles multiple sessions/runs)
+                for img, mask in all_files:
+                    logger.info(f"Processing file: {img}")
+                    bids_info = bids_loader.get_bids_entities(img)
                     output = self.process_subject(
-                        subject["bold_path"],
+                        img,
+                        mask,
                         output_dir,
+                        bids_info=bids_info,
                     )
                     results.append(output)
-                except Exception as e:
-                    logger.error(f"Failed to process {subject['bold_path']}: {e}")
-                    failed.append(i)
-                    results.append(None)
+
+            except Exception as e:
+                logger.error(f"Failed to process subject {subject_id}: {e}")
+                failed.append(subject_id)
+                results.append(None)
 
         if failed:
-            print('Failed to process:', failed)
+            print("Failed to process:", failed)
             logger.warning(f"Failed to process {len(failed)} subjects: {failed}")
 
         return results

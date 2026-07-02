@@ -91,8 +91,8 @@ class NilearnConfoundsConfig(BaseModel):
 class DenoisingConfig(BaseModel):
     """Denoising parameters."""
 
-    smoothing_fwhm: float = None
-    detrend: bool = True
+    smoothing_fwhm: Optional[float] = None
+    detrend: bool = False
     standardize: Optional[str] = None
     standardize_confounds: Optional[bool] = True
     low_pass: Optional[float] = None
@@ -117,7 +117,7 @@ class OutputConfig(BaseModel):
 class BIDSConfig(BaseModel):
     """BIDS dataset configuration."""
 
-    dataset_path: str = Field(..., description="Path to BIDS dataset root")
+    dataset_path: Optional[str] = Field(..., description="Path to BIDS dataset root")
     task: Optional[str] = Field(None, description="Task name (e.g., 'rest')")
     space: Optional[str] = Field(None, description="Space (e.g., 'MNI152NLin2009cAsym')")
     desc: Optional[str] = Field(None, description="Description (e.g., 'preproc')")
@@ -150,6 +150,3 @@ class PipelineConfig(BaseModel):
     output: OutputConfig = Field(default_factory=OutputConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     bids: Optional[BIDSConfig] = Field(None, description="BIDS dataset configuration")
-
-class ConfoundsConfig(BaseModel):
-    pass

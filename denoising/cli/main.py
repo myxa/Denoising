@@ -3,12 +3,11 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
 from typing import List, Optional
 
 from denoising.config.config_loader import load_config, setup_logging
 from denoising.core.pipeline import DenoisingPipeline
-from denoising.io.file_handler import validate_file_exists, BIDSFileLoader
+from denoising.io.file_handler import BIDSFileLoader
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,21 +28,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to YAML configuration file",
     )
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
+    parser.add_argument(
         "--bids-path",
         type=str,
-        help="Path to BIDS dataset root (BIDS mode)",
-    )
-    group.add_argument(
-        "--bold",
-        type=str,
-        help="Path to BOLD NIfTI file (single subject mode, legacy)",
-    )
-    group.add_argument(
-        "--subjects-list",
-        type=str,
-        help="Path to text file with subject info (batch mode, legacy)",
+        required=True,
+        help="Path to BIDS dataset root",
     )
 
     # BIDS mode arguments
@@ -78,13 +67,6 @@ def parse_args() -> argparse.Namespace:
         help="Description for BIDS query (default: preproc)",
     )
 
-    # Legacy mode arguments
-    parser.add_argument(
-        "--confounds",
-        type=str,
-        help="Path to confounds TSV file (required with --bold in legacy mode)",
-    )
-
     parser.add_argument(
         "--output-dir",
         type=str,
@@ -98,72 +80,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
-
-
-def run_single_subject(
-    config_path: str,
-    bold_path: str,
-    output_dir: str = None,
-    verbose: bool = False,
-) -> tuple:
-    """Process a single subject (legacy mode).
-
-    Args:
-        config_path: Path to config file.
-        bold_path: Path to BOLD file.
-        output_dir: Output directory.
-        verbose: Enable verbose logging.
-
-    Returns:
-        Tuple of (timeseries DataFrame, output path).
-    """
-    config = load_config(config_path)
-    if verbose:
-        config.logging.level = "DEBUG"
-
-    setup_logging(config)
-
-    validate_file_exists(bold_path)
-
-    pipeline = DenoisingPipeline(config)
-    return pipeline.process_subject(bold_path, output_dir)
-
-
-def run_batch(
-    config_path: str,
-    subjects_list_path: str,
-    output_dir: str = None,
-    verbose: bool = False,
-) -> list:
-    """Process multiple subjects from a list file (legacy mode).
-
-    Args:
-        config_path: Path to config file.
-        subjects_list_path: Path to subjects list file.
-        output_dir: Output directory.
-        verbose: Enable verbose logging.
-
-    Returns:
-        List of tuples (timeseries DataFrame, output path).
-    """
-    config = load_config(config_path)
-    if verbose:
-        config.logging.level = "DEBUG"
-
-    setup_logging(config)
-
-    subjects = []
-    with open(subjects_list_path, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split(",")
-            if len(parts) >= 1:
-                subjects.append({"bold_path": parts[0].strip()})
-
-    pipeline = DenoisingPipeline(config)
-    return pipeline.process_batch(subjects, output_dir)
 
 
 def run_bids_single(
@@ -263,67 +179,42 @@ def main():
     args = parse_args()
 
     try:
-        if args.bids_path:
-            # BIDS mode
-            if args.subject:
-                # Single subject
-                outputs = run_bids_single(
-                    args.config,
-                    args.bids_path,
-                    args.subject,
-                    args.task,
-                    args.space,
-                    args.desc,
-                    args.output_dir,
-                    args.verbose,
-                )
-                print(f"Processed {len(outputs)} files")
-                for i, out in enumerate(outputs):
-                    if out:
-                        print(f"  {i+1}. {out[1]}")
-                    else:
-                        print(f"  {i+1}. Failed")
-            elif args.subjects:
-                # Batch mode
-                outputs = run_bids_batch(
-                    args.config,
-                    args.bids_path,
-                    args.subjects,
-                    args.task,
-                    args.space,
-                    args.desc,
-                    args.output_dir,
-                    args.verbose,
-                )
-                print(f"Processed {len(outputs)} files")
-            else:
-                print("Error: --subject or --subjects required with --bids-path", file=sys.stderr)
-                sys.exit(1)
-
-        elif args.bold:
-            # Legacy single subject mode
-            output = run_single_subject(
+        if args.subject:
+            # Single subject
+            outputs = run_bids_single(
                 args.config,
-                args.bold,
+                args.bids_path,
+                args.subject,
+                args.task,
+                args.space,
+                args.desc,
                 args.output_dir,
                 args.verbose,
             )
-            print(f"Output: {output[1]}")
-
-        else:
-            # Legacy batch mode
-            outputs = run_batch(
-                args.config,
-                args.subjects_list,
-                args.output_dir,
-                args.verbose,
-            )
-            print(f"Processed {len(outputs)} subjects")
+            print(f"Processed {len(outputs)} files")
             for i, out in enumerate(outputs):
                 if out:
                     print(f"  {i+1}. {out[1]}")
                 else:
                     print(f"  {i+1}. Failed")
+        elif args.subjects:
+            # Batch mode
+            # Handle 'all' special value: argparse with nargs='+' wraps it as ['all']
+            subjects = "all" if args.subjects == ["all"] else args.subjects
+            outputs = run_bids_batch(
+                args.config,
+                args.bids_path,
+                subjects,
+                args.task,
+                args.space,
+                args.desc,
+                args.output_dir,
+                args.verbose,
+            )
+            print(f"Processed {len(outputs)} files")
+        else:
+            print("Error: --subject or --subjects required", file=sys.stderr)
+            sys.exit(1)
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

@@ -9,6 +9,8 @@ import nilearn.datasets
 import numpy as np
 from nilearn.maskers import NiftiLabelsMasker
 
+from collections import namedtuple
+
 from denoising.utils.helpers import download_file
 
 import pandas as pd
@@ -42,8 +44,8 @@ class AtlasManager:
         Returns:
             Configured NiftiLabelsMasker instance.
         """
-        if self._masker is not None:
-            return self._masker
+        #if self._masker is not None:
+        #    return self._masker
 
         logger.info(f"Fetching {self.atlas_name} atlas with {self.n_regions} regions at {self.resolution}mm")
 
@@ -55,26 +57,26 @@ class AtlasManager:
                 data_dir=cache_dir,
             )
             self._atlas_data = atlas
-            self._masker = NiftiLabelsMasker(
-                labels_img=atlas.maps,
-                labels=atlas.labels,
-                standardize=False,
-            )
+            # self._masker = NiftiLabelsMasker(
+            #     labels_img=atlas.maps,
+            #     labels=atlas.labels,
+            #     standardize=False,
+            # )
 
             
         elif self.atlas_name.lower() == "brainnetome":
             atlas = self._fetch_brainnetome_atlas(cache_dir)
             self._atlas_data = atlas
-            self._masker = NiftiLabelsMasker(
-                labels_img=atlas.maps,
-                labels=atlas.labels,
-                standardize=False,
-            )
+            # self._masker = NiftiLabelsMasker(
+            #     labels_img=atlas.maps,
+            #     labels=atlas.labels,
+            #     standardize=False,
+            # )
             
         else:
             raise ValueError(f"Atlas {self.atlas_name} not supported")
 
-        return self._masker
+        return self._atlas_data
 
     def _fetch_brainnetome_atlas(self, cache_dir: Optional[str] = None):
         """Fetch Brainnetome atlas.
@@ -143,11 +145,17 @@ class AtlasManager:
         
         # Load atlas image
         atlas_img = nib.load(atlas_file)
+
+        dt = namedtuple("AtlasData", ["maps", "labels"])
+
+        return dt(atlas_img, labels)
+
+
         
         # Create atlas data object
-        class AtlasData:
-            def __init__(self, maps, labels):
-                self.maps = maps
-                self.labels = labels
+        #class AtlasData:
+        #    def __init__(self, maps, labels):
+        #        self.maps = maps
+        #        self.labels = labels
         
-        return AtlasData(atlas_img, labels)
+        #return AtlasData(atlas_img, labels)
